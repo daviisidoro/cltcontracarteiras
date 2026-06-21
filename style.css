@@ -8,31 +8,33 @@ html, body {
   background: #0a0a0f;
   overflow: hidden;
   font-family: 'Courier New', monospace;
+  width: 100%;
+  height: 100%;
 }
 
-body {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100vw;
-  height: 100vh;
-  position: relative;
-}
-
+/* #game-container cobre a tela inteira (dimensões reais da viewport,
+   definidas via JS em px — não vh/vw, que variam com a barra de
+   endereço do navegador mobile). Em modo .force-landscape ele recebe
+   largura/altura TROCADAS e é rotacionado 90° em torno do próprio
+   centro, fazendo seu conteúdo (canvas + controles) preencher a tela
+   física inteira mesmo "deitado". Os controles mobile (filhos diretos,
+   position:absolute) ficam então grudados nos cantos da TELA, e o
+   canvas fica centralizado dentro via #canvas-stack. */
 #game-container {
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* ─── Rotação forçada para landscape em mobile retrato ───
-   Quando o JS detecta um dispositivo touch em modo retrato, adiciona
-   .force-landscape ao body e define via JS (updateOrientation), em
-   pixels reais — não vh/vw, que variam com a barra de endereço do
-   navegador mobile — o tamanho do body e a largura/altura/rotação do
-   #game-container. Isso faz o jogo preencher e centralizar
-   corretamente a tela física mesmo estando "deitado" via CSS. */
+#canvas-stack {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 
 #gameCanvas {
   display: block;
