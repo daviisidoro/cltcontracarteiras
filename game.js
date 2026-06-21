@@ -77,6 +77,7 @@ const LEVELS = [
 // ─── ESTADO GLOBAL DO JOGO ───────────────────────────────────
 let canvas, ctx;
 let textCanvas, tctx; // canvas overlay de texto (alta resolução, nítido)
+let gameContainer, canvasStack; // elementos DOM para layout/rotação mobile
 let gameState = 'title'; // 'title' | 'playing' | 'gameover' | 'win' | 'levelcomplete'
 let camera = { x: 0 };
 let score = 0;
@@ -1818,25 +1819,71 @@ function drawScene() {
   }
 }
 
+let lastLayoutKey = '';
 function gameLoop() {
-  // Quando .force-landscape está ativo, o container foi rotacionado 90°
-  // via CSS, então o espaço "deitado" disponível para o canvas é
-  // innerHeight × innerWidth (largura e altura trocadas em relação à
-  // viewport real, que continua em retrato).
   const rotated = document.body.classList.contains('force-landscape');
+
+  // Espaço "deitado" disponível para o jogo: quando rotacionado, a
+  // largura/altura reais da viewport ficam trocadas em relação ao que
+  // o jogo enxerga (innerHeight vira a largura visual, innerWidth vira
+  // a altura visual). Os controles mobile sempre ficam SOBREPOSTOS ao
+  // jogo (não reservam espaço dedicado), então o jogo sempre usa a
+  // tela inteira disponível.
   const availW = rotated ? window.innerHeight : window.innerWidth;
   const availH = rotated ? window.innerWidth  : window.innerHeight;
 
   const scale = Math.min(
     availW / CONFIG.BASE_W,
-    (availH - (isTouchDevice() ? 160 : 0)) / CONFIG.BASE_H
+    availH / CONFIG.BASE_H
   );
   const cssW = Math.floor(CONFIG.BASE_W * scale);
   const cssH = Math.floor(CONFIG.BASE_H * scale);
-  canvas.style.width  = cssW + 'px';
-  canvas.style.height = cssH + 'px';
 
-  syncTextCanvas(cssW, cssH);
+  const realW = window.innerWidth;
+  const realH = window.innerHeight;
+
+  // Evita reescrever o DOM a cada frame (60x/s) quando nada mudou —
+  // só recalcula quando a viewport ou a orientação realmente mudam.
+  const layoutKey = `${rotated}|${realW}|${realH}|${cssW}|${cssH}`;
+  if (layoutKey !== lastLayoutKey) {
+    lastLayoutKey = layoutKey;
+
+    canvas.style.width  = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+
+    // #game-container cobre a TELA INTEIRA (dimensões reais em px, não
+    // vh/vw) e é rotacionado quando necessário. Como ele é flex
+    // (justify-content:center; align-items:center), o #canvas-stack
+    // (do tamanho exato do canvas, cssW×cssH) fica automaticamente
+    // centralizado dentro dele. Os controles mobile, irmãos do
+    // canvas-stack dentro do mesmo container, ficam grudados nos
+    // cantos da TELA real (não do canvas).
+    //
+    // O container em si precisa ser centralizado na tela MANUALMENTE
+    // via left/top: com width/height trocados (necessário pra rotação)
+    // e position:fixed, o canto top-left NÃO coincide com o centro da
+    // tela — calculamos left/top para que o CENTRO do elemento (em
+    // torno do qual a rotação ocorre, transform-origin padrão)
+    // coincida com o centro real da tela.
+    if (rotated) {
+      const gcW = realH, gcH = realW; // trocado
+      gameContainer.style.width  = gcW + 'px';
+      gameContainer.style.height = gcH + 'px';
+      gameContainer.style.left = Math.round((realW - gcW) / 2) + 'px';
+      gameContainer.style.top  = Math.round((realH - gcH) / 2) + 'px';
+      gameContainer.style.transform = 'rotate(90deg)';
+    } else {
+      gameContainer.style.width  = realW + 'px';
+      gameContainer.style.height = realH + 'px';
+      gameContainer.style.left = '0px';
+      gameContainer.style.top  = '0px';
+      gameContainer.style.transform = '';
+    }
+    canvasStack.style.width  = cssW + 'px';
+    canvasStack.style.height = cssH + 'px';
+
+    syncTextCanvas(cssW, cssH);
+  }
 
   update();
   draw();
@@ -1939,33 +1986,14 @@ function updateOrientation() {
   const shouldRotate = isPortrait();
   document.body.classList.toggle('force-landscape', shouldRotate);
 
-  const gc = document.getElementById('game-container');
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-
-  if (shouldRotate) {
-    // O body é fixado no tamanho real da viewport em px (não vh/vw, que
-    // variam com a barra de endereço do navegador mobile). O container
-    // do jogo recebe largura/altura TROCADAS (já que vai ficar deitado)
-    // e é rotacionado 90°. Como o body continua centralizando via flex
-    // e agora tem certeza do próprio tamanho, o container rotacionado
-    // fica perfeitamente centralizado e do tamanho certo.
-    document.body.style.width  = w + 'px';
-    document.body.style.height = h + 'px';
-    gc.style.width  = h + 'px';
-    gc.style.height = w + 'px';
-    gc.style.transform = 'rotate(90deg)';
-  } else {
-    document.body.style.width  = '';
-    document.body.style.height = '';
-    gc.style.width  = '';
-    gc.style.height = '';
-    gc.style.transform = '';
-  }
+  // O cálculo de tamanho/posição/rotação do #game-container e do
+  // #canvas-stack é feito a cada frame dentro de gameLoop(), que já
+  // tem acesso garantido aos elementos DOM (inicializados em init())
+  // e roda continuamente — não precisa ser duplicado aqui.
 
   // Tenta também a API nativa quando disponível (PWA instalado, alguns
   // Android/Chrome em fullscreen) — silenciosamente ignora se falhar,
-  // já que a rotação CSS acima já resolve o caso geral.
+  // já que a rotação CSS em gameLoop() já resolve o caso geral.
   if (screen.orientation && screen.orientation.lock) {
     screen.orientation.lock('landscape').catch(() => {});
   }
@@ -2142,6 +2170,9 @@ function init() {
 
   textCanvas = document.getElementById('textCanvas');
   tctx       = textCanvas.getContext('2d');
+
+  gameContainer = document.getElementById('game-container');
+  canvasStack   = document.getElementById('canvas-stack');
 
   setupOrientationHandling();
   setupMobileControls();
