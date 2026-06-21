@@ -1,0 +1,168 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #0a0a0f;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  font-family: 'Courier New', monospace;
+}
+
+#game-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ─── Rotação forçada para landscape em mobile retrato ───
+   Quando o JS detecta um dispositivo touch em modo retrato, adiciona
+   .force-landscape ao body e define width/height em px via JS (mais
+   confiável que 100vh/100vw em mobile). Isso gira o container 90° e
+   troca as dimensões, fazendo o jogo ocupar a tela inteira "deitado"
+   mesmo com o navegador/SO ainda em pé — funciona em qualquer
+   navegador, sem depender da Screen Orientation API (suporte
+   inconsistente, principalmente no Safari/iOS). */
+body.force-landscape #game-container {
+  transform: rotate(90deg);
+  transform-origin: center center;
+}
+
+#gameCanvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border: 3px solid #333;
+  box-shadow: 0 0 40px rgba(255, 200, 0, 0.15);
+}
+
+#textCanvas {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  /* texto nítido: SEM pixelated/crisp-edges aqui */
+}
+
+/* ─── Controles Mobile ───
+   position:absolute (não fixed) para que os controles girem JUNTO com
+   #game-container quando .force-landscape estiver ativo. */
+#mobile-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 160px;
+  pointer-events: none;
+  display: none; /* escondido por padrão, JS ativa se touch */
+  z-index: 100;
+}
+
+#joystick-zone {
+  position: absolute;
+  left: 30px;
+  bottom: 20px;
+  width: 110px;
+  height: 110px;
+  pointer-events: all;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#joystick-base {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+#joystick-stick {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 200, 50, 0.75);
+  border: 3px solid rgba(255, 220, 100, 0.9);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: none;
+  box-shadow: 0 0 10px rgba(255, 200, 50, 0.4);
+}
+
+#btn-jump {
+  position: absolute;
+  right: 30px;
+  bottom: 20px;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: rgba(255, 80, 80, 0.65);
+  border: 3px solid rgba(255, 120, 120, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 13px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  letter-spacing: 0.5px;
+  pointer-events: all;
+  user-select: none;
+  -webkit-user-select: none;
+  box-shadow: 0 0 15px rgba(255, 80, 80, 0.35);
+  active-transform: scale(0.92);
+}
+
+#btn-jump:active {
+  background: rgba(255, 120, 120, 0.85);
+  transform: scale(0.92);
+}
+
+#btn-throw {
+  position: absolute;
+  right: 130px;
+  bottom: 38px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(141, 98, 56, 0.65);
+  border: 3px solid rgba(184, 138, 90, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 10px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  letter-spacing: 0.3px;
+  pointer-events: all;
+  user-select: none;
+  -webkit-user-select: none;
+  box-shadow: 0 0 12px rgba(141, 98, 56, 0.35);
+}
+
+#btn-throw:active {
+  background: rgba(184, 138, 90, 0.85);
+  transform: scale(0.92);
+}
+
+@media (max-width: 768px) {
+  #mobile-controls {
+    display: block;
+  }
+}
