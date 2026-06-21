@@ -4,15 +4,19 @@
   box-sizing: border-box;
 }
 
-body {
+html, body {
   background: #0a0a0f;
+  overflow: hidden;
+  font-family: 'Courier New', monospace;
+}
+
+body {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
   width: 100vw;
-  overflow: hidden;
-  font-family: 'Courier New', monospace;
+  height: 100vh;
+  position: relative;
 }
 
 #game-container {
@@ -24,16 +28,11 @@ body {
 
 /* ─── Rotação forçada para landscape em mobile retrato ───
    Quando o JS detecta um dispositivo touch em modo retrato, adiciona
-   .force-landscape ao body e define width/height em px via JS (mais
-   confiável que 100vh/100vw em mobile). Isso gira o container 90° e
-   troca as dimensões, fazendo o jogo ocupar a tela inteira "deitado"
-   mesmo com o navegador/SO ainda em pé — funciona em qualquer
-   navegador, sem depender da Screen Orientation API (suporte
-   inconsistente, principalmente no Safari/iOS). */
-body.force-landscape #game-container {
-  transform: rotate(90deg);
-  transform-origin: center center;
-}
+   .force-landscape ao body e define via JS (updateOrientation), em
+   pixels reais — não vh/vw, que variam com a barra de endereço do
+   navegador mobile — o tamanho do body e a largura/altura/rotação do
+   #game-container. Isso faz o jogo preencher e centralizar
+   corretamente a tela física mesmo estando "deitado" via CSS. */
 
 #gameCanvas {
   display: block;
