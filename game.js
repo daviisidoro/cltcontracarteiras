@@ -1939,20 +1939,28 @@ function updateOrientation() {
   const shouldRotate = isPortrait();
   document.body.classList.toggle('force-landscape', shouldRotate);
 
-  // Define as dimensões em px reais via JS (mais confiável que 100vh/100vw
-  // em mobile, onde a barra de endereço some/aparece e distorce vh/vw).
+  const gc = document.getElementById('game-container');
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
   if (shouldRotate) {
-    document.body.style.width  = window.innerHeight + 'px';
-    document.body.style.height = window.innerWidth + 'px';
-    const gc = document.getElementById('game-container');
-    gc.style.width  = window.innerHeight + 'px';
-    gc.style.height = window.innerWidth + 'px';
+    // O body é fixado no tamanho real da viewport em px (não vh/vw, que
+    // variam com a barra de endereço do navegador mobile). O container
+    // do jogo recebe largura/altura TROCADAS (já que vai ficar deitado)
+    // e é rotacionado 90°. Como o body continua centralizando via flex
+    // e agora tem certeza do próprio tamanho, o container rotacionado
+    // fica perfeitamente centralizado e do tamanho certo.
+    document.body.style.width  = w + 'px';
+    document.body.style.height = h + 'px';
+    gc.style.width  = h + 'px';
+    gc.style.height = w + 'px';
+    gc.style.transform = 'rotate(90deg)';
   } else {
     document.body.style.width  = '';
     document.body.style.height = '';
-    const gc = document.getElementById('game-container');
     gc.style.width  = '';
     gc.style.height = '';
+    gc.style.transform = '';
   }
 
   // Tenta também a API nativa quando disponível (PWA instalado, alguns
@@ -1967,7 +1975,14 @@ function setupOrientationHandling() {
   if (!isTouchDevice()) return;
   updateOrientation();
   window.addEventListener('resize', updateOrientation);
-  window.addEventListener('orientationchange', updateOrientation);
+  window.addEventListener('orientationchange', () => {
+    // Alguns navegadores mobile reportam innerWidth/innerHeight
+    // desatualizados no instante exato do evento, antes do reflow
+    // terminar — recalcula imediatamente e de novo após um pequeno
+    // delay para garantir que pega as dimensões finais corretas.
+    updateOrientation();
+    setTimeout(updateOrientation, 150);
+  });
 }
 
 function setupMobileControls() {
@@ -1997,15 +2012,29 @@ function setupMobileControls() {
     e.preventDefault();
     for (const t of e.changedTouches) {
       if (t.identifier !== joystick.id) continue;
-      const dx = t.clientX - joystick.startX;
-      const dy = t.clientY - joystick.startY;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      const clampedX = (dist > MAX_DIST) ? (dx / dist) * MAX_DIST : dx;
-      const clampedY = (dist > MAX_DIST) ? (dy / dist) * MAX_DIST : dy;
+      // Vetor de arrasto em coordenadas REAIS da tela (não rotacionadas).
+      // O stick visual sempre usa esse vetor cru, pois ele está DENTRO
+      // do elemento já rotacionado pelo CSS e acompanha o dedo naturalmente.
+      const rawDx = t.clientX - joystick.startX;
+      const rawDy = t.clientY - joystick.startY;
+      const rawDist = Math.sqrt(rawDx*rawDx + rawDy*rawDy);
+      const rawClampedX = (rawDist > MAX_DIST) ? (rawDx / rawDist) * MAX_DIST : rawDx;
+      const rawClampedY = (rawDist > MAX_DIST) ? (rawDy / rawDist) * MAX_DIST : rawDy;
+      joystickStick.style.transform = `translate(calc(-50% + ${rawClampedX}px), calc(-50% + ${rawClampedY}px))`;
 
-      joystickStick.style.transform = `translate(calc(-50% + ${clampedX}px), calc(-50% + ${clampedY}px))`;
+      // Para a LÓGICA do jogo (esquerda/direita), o vetor precisa ser
+      // convertido do sistema de coordenadas real da tela para o sistema
+      // visual do jogo rotacionado (rotate(90deg) horário no CSS): a
+      // transformação inversa de -90° leva (dx,dy) -> (dy,-dx). Ou seja,
+      // arrastar o dedo "para baixo" na tela física move o personagem
+      // para a direita no jogo, e "para cima" move para a esquerda.
+      let dx = rawDx, dy = rawDy;
+      if (document.body.classList.contains('force-landscape')) {
+        dx =  rawDy;
+        dy = -rawDx;
+      }
+
       joystick.dx = dx;
-
       keys.left  = dx < -DEAD_ZONE;
       keys.right = dx >  DEAD_ZONE;
     }
